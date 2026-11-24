@@ -157,6 +157,12 @@ try {
             ``
         ].join('\n');
 
+        // Cloudflare từ chối deploy nếu một dòng trong _headers dài quá 2000 ký tự.
+        const tooLong = headersContent.split('\n').findIndex(l => l.length > 2000);
+        if (tooLong !== -1) {
+            throw new Error(`public/_headers dòng ${tooLong + 1} dài ${headersContent.split('\n')[tooLong].length} ký tự (giới hạn 2000). Hãy rút gọn csp.json (bỏ domain không dùng / trùng lặp).`);
+        }
+
         fs.writeFileSync(path.join(__dirname, 'public', '_headers'), headersContent);
         console.log('Đã tạo public/_headers từ csp.json (kèm Cache-Control no-store cho mọi asset)');
     }
@@ -191,8 +197,15 @@ try {
             execFileSync(tailwindExe, ['-i', inputCssPath, '-o', outputCssPath, '--minify'], { stdio: 'inherit' });
             console.log('Biên dịch Tailwind CSS thành công (qua tailwind.exe)!');
         } else {
-            execSync(`npx -y tailwindcss -i "${inputCssPath}" -o "${outputCssPath}" --minify`, { stdio: 'inherit' });
-            console.log('Biên dịch Tailwind CSS thành công (qua npx tailwindcss)!');
+            // Dự án dùng Tailwind v4 (src/input.css có @import "tailwindcss").
+            // CLI của v4 nằm trong gói @tailwindcss/cli (đã khai báo trong devDependencies).
+            // Không dùng `npx -y tailwindcss` vì gói `tailwindcss` v4 không còn kèm CLI -> lỗi "could not determine executable to run".
+            const localBin = path.join(__dirname, 'node_modules', '.bin', process.platform === 'win32' ? 'tailwindcss.cmd' : 'tailwindcss');
+            if (!fs.existsSync(localBin)) {
+                throw new Error('Chưa cài @tailwindcss/cli. Chạy: npm install');
+            }
+            execFileSync(localBin, ['-i', inputCssPath, '-o', outputCssPath, '--minify'], { stdio: 'inherit', shell: process.platform === 'win32' });
+            console.log('Biên dịch Tailwind CSS thành công (qua @tailwindcss/cli cục bộ)!');
         }
     } catch (twErr) {
         console.warn('Cảnh báo: Lỗi khi biên dịch Tailwind CSS:', twErr.message);
