@@ -21,7 +21,7 @@ VNBUSARCHIVE là kho tư liệu chung cho cộng đồng, các tiêu chuẩn duy
   * Xe đã đổi màu sơn hoặc nhận diện thương hiệu mới (ảnh ghi lại màu sơn hoặc logo cũ).
   * Xe đã hết niên hạn sử dụng hoặc bị loại biên.
   * Xe chạy hợp đồng hoặc tăng cường theo sự kiện tạm thời đã kết thúc.
-* **Phạm vi châm chước:** Có thể được bỏ qua các luật B1.3, B1.4, B2.1, B2.2, B2.3 nhưng không nghiêng quá 4 độ mỗi chiều, B2.4, B2.5, B3.1 nhưng vẫn bắt buộc phải nhìn rõ hình dáng tổng thể và nhận diện phương tiện, B3.5.
+* **Phạm vi châm chước:** Có thể được bỏ qua các luật B1.3, B1.4, B2.1, B2.2, B2.3 nhưng không nghiêng quá 4 độ mỗi chiều, B2.4, B2.5, B3.1 nhưng vẫn bắt buộc phải nhìn rõ hình dáng tổng thể và nhận diện phương tiện, B3.5, B7.1 nhưng vẫn bắt buộc phải làm mờ hoàn toàn khuôn mặt của hành khách, tài xế và nhân viên, B7.3, B7.4.
 * Ban quản trị giữ quyền áp dụng linh hoạt chính sách ưu tiên tùy thuộc vào giá trị tư liệu thực tế của từng bức ảnh.
 
 ---
@@ -104,6 +104,30 @@ VNBUSARCHIVE là kho tư liệu chung cho cộng đồng, các tiêu chuẩn duy
 | <img src="https://i.postimg.cc/SQcGVmcz/IMG_8022.jpg" width="300"> | ❌ **TỪ CHỐI** | **Lỗi:** Cự ly chụp quá xa so với kích thước khung hình. |
 | <img src="https://i.postimg.cc/7PSNXqSC/IMG_8131.jpg" width="300"> | ❌ **TỪ CHỐI** | **Lỗi:** Ảnh bị cháy sáng nghiêm trọng làm mất chi tiết xe. |
 | <img src="https://i.postimg.cc/rmm3qgbw/IMG-20260323-125800.jpg" width="300"> | ❌ **TỪ CHỐI** | **Lỗi:** Người đi đường đứng chắn ngay trước thân xe. |
+
+---
+
+### B7. Quy chuẩn đối với ảnh nội thất phương tiện
+
+Hệ thống tiếp nhận ảnh chụp nội thất (khoang hành khách và buồng lái) nhằm lưu trữ cấu trúc, cách bố trí ghế ngồi/giường nằm và trang thiết bị thực tế của phương tiện. Để đảm bảo giá trị tư liệu và bảo vệ quyền riêng tư, ảnh nội thất phải tuân thủ các quy định đặc thù sau:
+
+* **B7.1. Điều kiện tiên quyết về con người và quyền riêng tư:**
+  * **Khoang xe bắt buộc không có người:** Không có hành khách bên trong xe tại thời điểm chụp (khuyến khích chụp khi xe đang đỗ tại bến đầu/cuối, bãi tập kết xe công cộng hoặc trước giờ xuất bến đón khách).
+  * **Trường hợp duy nhất chấp nhận có người:** Chỉ cho phép sự xuất hiện của tài xế và nhân viên phục vụ/lơ xe trong xe. Tuy nhiên, **bắt buộc phải làm mờ hoàn toàn khuôn mặt** của tài xế và nhân viên.
+  * **Nghiêm cấm ảnh cá nhân:** Tuyệt đối từ chối ảnh chụp selfie, ảnh cá nhân tạo dáng, chụp kỷ niệm hoặc ảnh có sự hiện diện của hành khách thông thường.
+
+* **B7.2. Góc chụp và giá trị lưu trữ khoang xe:**
+  * **Ảnh phải thể hiện được không gian tổng thể:** Ưu tiên 3 góc chụp chuẩn:
+    1. *Từ cửa trước hoặc sau lưng buồng lái nhìn dọc về phía đuôi xe:* Thể hiện bố cục hàng ghế/giường nằm, trần xe và lối đi.
+    2. *Từ hàng ghế cuối nhìn ngược về phía trước:* Thể hiện tổng quan khoang khách và khu vực cabin.
+    3. *Khu vực táp-lô hoặc buồng lái:* Thể hiện bảng điều khiển, vô lăng, cần số và thiết bị điều khiển của tài xế.
+  * **Từ chối chụp đối phó hoặc chi tiết vụn vặt:** Từ chối ảnh chỉ chụp cận cảnh một chi tiết đơn lẻ (1 chiếc ghế, 1 rèm cửa, 1 tay nắm, sàn xe...), ảnh chúc mũi máy xuống sàn hoặc ngửa lên trần không rõ cấu trúc xe, ảnh chụp xuyên qua kính xe từ bên ngoài bị phản quang hoặc lóa bóng.
+
+* **B7.3. Ánh sáng và thiết bị trong khoang xe:**
+  * Toàn bộ khoang xe, lối đi và chất liệu nội thất phải đủ sáng, rõ nét, không bị rung nhòe hoặc nhiễu hạt quá mức do thiếu sáng.
+  * Do đặc thù chụp trong xe có chênh lệch tương phản lớn với ngoài trời, hệ thống châm chước hiện tượng cháy sáng nhẹ ở các ô cửa sổ kính, miễn là nội thất bên trong xe vẫn giữ được chi tiết và màu sắc chuẩn xác.
+
+* **B7.4. Phạm vi châm chước:** Có thể được bỏ qua các luật B2.1, B2.2, B2.4, B2.5, B3.5 nhưng cần căn chỉnh cân đối trục lối đi ở giữa (cho phép sử dụng ống kính góc rộng 0.5x - 0.6x), B4.1 nhưng vẫn bắt buộc phải nhìn thấy biển kiểm soát được dán hoặc gắn ở bên trong cabin/buồng lái xe. Ngoài các luật trên, toàn bộ các quy chuẩn còn lại đều bắt buộc áp dụng tương tự như ảnh ngoại thất.
 
 ---
 

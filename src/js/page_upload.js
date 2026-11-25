@@ -472,7 +472,7 @@ Object.assign(window.app, {
                         warningEl.classList.remove('flex');
                         if (app.upload.isBlockedByModelDuplicate) {
                             app.upload.isBlockedByModelDuplicate = false;
-                            if (btnSubmit && !document.getElementById('upload-quota-text')?.classList.contains('text-red-600') && !document.getElementById('duplicate-warning-msg')) {
+                            if (btnSubmit && !document.getElementById('upload-quota-text')?.classList.contains('text-red-600') && !document.getElementById('duplicate-warning-msg') && !app.upload.isBlockedByInteriorLimit) {
                                 btnSubmit.disabled = false;
                             }
                         }
@@ -518,6 +518,11 @@ Object.assign(window.app, {
                     const valDate = dateInput.value;
                     const oldWarning = document.getElementById('duplicate-warning-msg');
                     if (oldWarning) oldWarning.remove();
+                    const interiorAlertEl = document.getElementById('up-interior-alert');
+                    const interiorAlertMsg = document.getElementById('up-interior-alert-msg');
+                    if (interiorAlertEl) interiorAlertEl.classList.add('hidden');
+                    app.upload.isBlockedByInteriorLimit = false;
+
                     if (!document.getElementById('upload-quota-text')?.classList.contains('text-red-600') && !app.upload.isBlockedByModelDuplicate) {
                         btnSubmit.disabled = false;
                     }
@@ -535,7 +540,11 @@ Object.assign(window.app, {
                         // Đếm số ảnh của xe này đang nằm trong hàng đợi tải lên cục bộ trong tháng hiện tại
                         const queuedCount = (app.upload.uploadQueue || []).filter(item => item.plate === cleanPlate).length;
 
-                        const [monthRes, dateRes] = await Promise.all([
+                        const valLocation = document.getElementById('up-location').value.trim();
+                        const isInterior = valLocation === 'Chụp trong xe';
+                        const isDocChecked = document.getElementById('up-is-documentary')?.checked || false;
+
+                        const [monthRes, dateRes, vehicleApprovedRes] = await Promise.all([
                             window.sb
                                 .from('photos')
                                 .select('id', { count: 'exact' })
@@ -549,10 +558,32 @@ Object.assign(window.app, {
                                 .select('taken_at, location')
                                 .eq('uploader_id', app.user.id)
                                 .eq('license_plate', cleanPlate)
-                                .neq('status', 'denied') : Promise.resolve({ data: [] })
+                                .neq('status', 'denied') : Promise.resolve({ data: [] }),
+                            (isInterior && !isDocChecked) ? window.sb
+                                .from('photos')
+                                .select('id, location')
+                                .eq('license_plate', cleanPlate)
+                                .eq('status', 'approved') : Promise.resolve({ data: [] })
                         ]);
 
                         if (myToken !== app.upload._dupToken) return;
+
+                        if (isInterior && !isDocChecked) {
+                            const approvedPhotos = vehicleApprovedRes.data || [];
+                            const totalApproved = approvedPhotos.length;
+                            const approvedInterior = approvedPhotos.filter(p => (p.location || '').trim() === 'Chụp trong xe').length;
+                            const maxInteriorAllowed = Math.floor(totalApproved / 10);
+
+                            if (totalApproved < 10 || approvedInterior >= maxInteriorAllowed) {
+                                app.upload.isBlockedByInteriorLimit = true;
+                                btnSubmit.disabled = true;
+                                if (interiorAlertEl && interiorAlertMsg) {
+                                    interiorAlertMsg.innerText = `Chưa đủ điều kiện đăng ảnh nội thất: Ảnh nội thất chỉ được chiếm tối đa 10% tổng số ảnh của xe và cần tối thiểu 10 ảnh đã duyệt cho ảnh đầu tiên.`;
+                                    interiorAlertEl.classList.remove('hidden');
+                                }
+                                return;
+                            }
+                        }
 
                         const monthPhotosCount = (monthRes.count || (monthRes.data ? monthRes.data.length : 0)) + queuedCount;
                         if (monthPhotosCount >= 3) {
@@ -606,6 +637,7 @@ Object.assign(window.app, {
                 toggleInsideVehicle: (checked) => {
                     const locInput = document.getElementById('up-location');
                     const warningEl = document.getElementById('up-interior-warning');
+                    const interiorAlertEl = document.getElementById('up-interior-alert');
                     if (checked) {
                         locInput.value = 'Chụp trong xe';
                         locInput.disabled = true;
@@ -614,6 +646,8 @@ Object.assign(window.app, {
                         if (locInput.value === 'Chụp trong xe') locInput.value = '';
                         locInput.disabled = false;
                         if (warningEl) warningEl.classList.add('hidden');
+                        if (interiorAlertEl) interiorAlertEl.classList.add('hidden');
+                        app.upload.isBlockedByInteriorLimit = false;
                     }
                     app.upload.checkDuplicateRealtime();
                 },
@@ -952,7 +986,7 @@ Object.assign(window.app, {
                         const btnCoach = document.getElementById('btn-type-coach');
                         if(btnBus) btnBus.classList.remove('opacity-60', 'opacity-80', 'cursor-not-allowed');
                         if(btnCoach) btnCoach.classList.remove('opacity-60', 'opacity-80', 'cursor-not-allowed');
-                        if(btnSubmit && !document.getElementById('upload-quota-text')?.classList.contains('text-red-600')) btnSubmit.disabled = false;
+                        if(btnSubmit && !document.getElementById('upload-quota-text')?.classList.contains('text-red-600') && !app.upload.isBlockedByInteriorLimit) btnSubmit.disabled = false;
                     };
                     if (rawPlate.startsWith('80')) {
                         unlockUI();
@@ -1070,7 +1104,7 @@ Object.assign(window.app, {
                                             if(btnCoach) btnCoach.classList.remove('opacity-50', 'pointer-events-none');
                                             app.upload.selectType(dbType, true);
                                             const submitBtn = document.getElementById('btn-submit');
-                                            if(submitBtn && !document.getElementById('upload-quota-text')?.classList.contains('text-red-600')) submitBtn.disabled = false;
+                                            if(submitBtn && !document.getElementById('upload-quota-text')?.classList.contains('text-red-600') && !app.upload.isBlockedByInteriorLimit) submitBtn.disabled = false;
                                         },
                                         () => {
                                             const submitBtn = document.getElementById('btn-submit');
@@ -2598,6 +2632,10 @@ Object.assign(window.app, {
                     app.upload.checkModelWarning && app.upload.checkModelWarning();
                     if (app.upload.isBlockedByModelDuplicate) {
                         return app.ui.showAlert("Xe định danh phụ không được trùng dòng xe với xe khác cùng biển kiểm soát.", null, null, { title: "Từ chối tải lên" });
+                    }
+                    if (app.upload.isBlockedByInteriorLimit) {
+                        const alertMsg = document.getElementById('up-interior-alert-msg')?.innerText.trim();
+                        return app.ui.showAlert(alertMsg || "Xe này chưa đủ điều kiện để tải lên ảnh nội thất.", null, null, { title: "Chưa đủ điều kiện" });
                     }
                     const q = app.upload.currentQuota;
                     if (q.limit !== null && q.count >= q.limit) {

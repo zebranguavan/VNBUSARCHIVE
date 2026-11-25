@@ -2003,6 +2003,20 @@ html.theme-dark .ct-icon {
             box-shadow: 0 1px 3px rgba(251, 191, 36, 0.4);
             animation: badge-xe-moi-pulse 2s infinite;
         }
+        .badge-noi-that {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 8px;
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: #1e3a8a;
+            background: linear-gradient(135deg, #bfdbfe, #93c5fd);
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(147, 197, 253, 0.4);
+        }
         @keyframes badge-xe-moi-pulse {
             0%, 100% { box-shadow: 0 1px 3px rgba(251, 191, 36, 0.4); }
             50% { box-shadow: 0 1px 8px rgba(251, 191, 36, 0.7); }
@@ -2255,7 +2269,7 @@ html.theme-dark .ct-icon {
             if (stored === 'system') {
                 theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             }
-            document.write('<link rel="stylesheet" href="/css/' + theme + '.css?v=1795424974870" id="theme-css">');
+            document.write('<link rel="stylesheet" href="/css/' + theme + '.css?v=1795532712520" id="theme-css">');
             document.documentElement.classList.add('theme-' + theme);
             document.documentElement.style.backgroundColor = theme === 'dark' ? '#18181b' : '#fdfcf8';
 
@@ -3007,6 +3021,26 @@ html.theme-dark .ct-icon {
                                     <input type="checkbox" value="[B4.4] Bỏ sót vùng làm mờ: Bắt buộc che/làm mờ BKS nếu phương tiện khác xuất hiện trong ảnh đang có hành vi vi phạm giao thông." class="deny-quick-cb mt-0.5 cursor-pointer accent-red-600">
                                     <span class="text-sm text-gray-700 group-hover:text-black transition leading-snug">[B4.4] Bỏ sót vùng làm mờ: Bắt buộc che/làm mờ BKS nếu phương tiện khác xuất hiện trong ảnh đang có hành vi vi phạm giao thông.</span>
                                 </label>
+                                    <label class="flex items-start gap-2 cursor-pointer group">
+                                    <input type="checkbox" value="[B7.1] Vi phạm người trong xe: Xuất hiện hành khách trên xe, chụp ảnh selfie hoặc chụp kỷ niệm cá nhân." class="deny-quick-cb mt-0.5 cursor-pointer accent-red-600">
+                                    <span class="text-sm text-gray-700 group-hover:text-black transition leading-snug">[B7.1] Vi phạm người trong xe: Xuất hiện hành khách trên xe, chụp ảnh selfie hoặc chụp kỷ niệm cá nhân.</span>
+                                </label>
+                                    <label class="flex items-start gap-2 cursor-pointer group">
+                                    <input type="checkbox" value="[B7.1] Vi phạm quyền riêng tư nội thất: Chưa làm mờ khuôn mặt của tài xế hoặc nhân viên phục vụ/lơ xe." class="deny-quick-cb mt-0.5 cursor-pointer accent-red-600">
+                                    <span class="text-sm text-gray-700 group-hover:text-black transition leading-snug">[B7.1] Vi phạm quyền riêng tư nội thất: Chưa làm mờ khuôn mặt của tài xế hoặc nhân viên phục vụ/lơ xe.</span>
+                                </label>
+                                    <label class="flex items-start gap-2 cursor-pointer group">
+                                    <input type="checkbox" value="[B7.2] Không thể hiện không gian tổng thể: Chỉ chụp chi tiết vụn vặt đơn lẻ hoặc góc máy không phản ánh cấu trúc khoang xe." class="deny-quick-cb mt-0.5 cursor-pointer accent-red-600">
+                                    <span class="text-sm text-gray-700 group-hover:text-black transition leading-snug">[B7.2] Không thể hiện không gian tổng thể: Chỉ chụp chi tiết vụn vặt đơn lẻ hoặc góc máy không phản ánh cấu trúc khoang xe.</span>
+                                </label>
+                                    <label class="flex items-start gap-2 cursor-pointer group">
+                                    <input type="checkbox" value="[B7.3] Chất lượng ánh sáng trong xe kém: Khoang xe thiếu sáng, rung nhòe, nhiễu hạt nặng hoặc ngược sáng làm mất chi tiết nội thất." class="deny-quick-cb mt-0.5 cursor-pointer accent-red-600">
+                                    <span class="text-sm text-gray-700 group-hover:text-black transition leading-snug">[B7.3] Chất lượng ánh sáng trong xe kém: Khoang xe thiếu sáng, rung nhòe, nhiễu hạt nặng hoặc ngược sáng làm mất chi tiết nội thất.</span>
+                                </label>
+                                    <label class="flex items-start gap-2 cursor-pointer group">
+                                    <input type="checkbox" value="[B7.4] Bố cục nội thất mất cân đối: Trục lối đi hoặc cột xe bị nghiêng ngả, méo lệch dị dạng quá mức do góc đặt máy." class="deny-quick-cb mt-0.5 cursor-pointer accent-red-600">
+                                    <span class="text-sm text-gray-700 group-hover:text-black transition leading-snug">[B7.4] Bố cục nội thất mất cân đối: Trục lối đi hoặc cột xe bị nghiêng ngả, méo lệch dị dạng quá mức do góc đặt máy.</span>
+                                </label>
                                 </div>
                             </div>
                             
@@ -3028,6 +3062,10 @@ html.theme-dark .ct-icon {
                                     <label class="flex items-start gap-2 cursor-pointer group">
                                     <input type="checkbox" value="[B4.2] Vi phạm quyền riêng tư: Chưa thực hiện che chắn / làm mờ khuôn mặt của tài xế hoặc hành khách." class="deny-quick-cb mt-0.5 cursor-pointer accent-red-600">
                                     <span class="text-sm text-gray-700 group-hover:text-black transition leading-snug">[B4.2] Vi phạm quyền riêng tư: Chưa thực hiện che chắn / làm mờ khuôn mặt của tài xế hoặc hành khách.</span>
+                                </label>
+                                    <label class="flex items-start gap-2 cursor-pointer group">
+                                    <input type="checkbox" value="[B7.4] Không thể nhận diện phương tiện: Không nhìn thấy biển kiểm soát được dán hoặc gắn ở bên trong cabin/buồng lái xe." class="deny-quick-cb mt-0.5 cursor-pointer accent-red-600">
+                                    <span class="text-sm text-gray-700 group-hover:text-black transition leading-snug">[B7.4] Không thể nhận diện phương tiện: Không nhìn thấy biển kiểm soát được dán hoặc gắn ở bên trong cabin/buồng lái xe.</span>
                                 </label>
                                     <label class="flex items-start gap-2 cursor-pointer group">
                                     <input type="checkbox" value="[B5.1] Vi phạm bản quyền: Dữ liệu hình ảnh không thuộc quyền sở hữu trực tiếp của tài khoản tải lên." class="deny-quick-cb mt-0.5 cursor-pointer accent-red-600">
@@ -4008,11 +4046,6 @@ html.theme-dark .ct-icon {
                                 <i class="fa-solid fa-triangle-exclamation text-base mt-0.5"></i>
                                 <span><span class="font-bold">Ảnh của bạn sẽ bị xóa tự động vào ngày <span id="denial-delete-date">...</span>.</span> Vui lòng gửi yêu cầu kháng cáo trước thời hạn này. Sau khi ảnh bị xóa, bạn sẽ không thể thực hiện kháng cáo.</span>
                             </div>
-                        </div>
-
-                        <div id="info-interior-warning" class="hidden mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg shadow-sm flex items-start gap-2.5 fade-zoom-in">
-                            <i class="fa-solid fa-triangle-exclamation text-yellow-600 mt-0.5 text-sm"></i>
-                            <p class="text-[11px] font-bold text-yellow-800 leading-snug m-0">Đây là ảnh được đăng tải trước ngày 30/7/2026. Từ ngày 30/7/2026, nền tảng không còn hỗ trợ nhận ảnh nội thất xe.</p>
                         </div>
 
                         <!-- Dropdown Góp ý cải thiện ảnh (Độc lập) -->
@@ -5551,7 +5584,7 @@ html.theme-dark .ct-icon {
                                         </button>
                                     </div>
                                     <div id="up-location-history" class="mt-2 flex flex-wrap gap-1.5 hidden"></div>
-                                    <div class="mt-2.5 hidden">
+                                    <div class="mt-2.5">
                                         <label class="flex items-start cursor-pointer group select-none w-max">
                                             <input type="checkbox" id="up-location-inside" onchange="app.upload.toggleInsideVehicle(this.checked)" class="custom-cb-input sr-only">
                                             <div class="custom-cb-box shrink-0 shadow-sm">
@@ -5559,6 +5592,10 @@ html.theme-dark .ct-icon {
                                             </div>
                                             <span class="text-xs font-semibold text-gray-800 group-hover:text-black transition leading-relaxed pt-0.5">Chụp trong xe</span>
                                         </label>
+                                        <div id="up-interior-alert" class="hidden mt-2.5 p-3 bg-red-50 border border-red-200 rounded-lg shadow-sm flex items-start gap-2.5 fade-zoom-in">
+                                            <i class="fa-solid fa-triangle-exclamation text-red-500 mt-0.5 text-sm"></i>
+                                            <p id="up-interior-alert-msg" class="text-[11px] font-bold text-red-700 leading-snug m-0"></p>
+                                        </div>
                                     </div>
                                     <p id="err-up-location" class="upload-req-err hidden text-[11px] mt-1 text-red-600 font-bold"><i class="fa-solid fa-triangle-exclamation"></i> Vui lòng nhập Vị trí chụp</p>
                                 </div>
@@ -5593,7 +5630,7 @@ html.theme-dark .ct-icon {
                                     <div class="flex items-center justify-between">
                                         <label class="text-sm font-bold text-gray-700 cursor-pointer select-none flex-1" for="up-is-documentary">Đánh dấu ảnh này là ảnh tư liệu</label>
                                         <label class="relative inline-flex items-center cursor-pointer shrink-0 ml-4 self-center">
-                                            <input type="checkbox" id="up-is-documentary" class="sr-only peer" onchange="document.getElementById('up-doc-alert').classList.toggle('hidden', !this.checked)">
+                                            <input type="checkbox" id="up-is-documentary" class="sr-only peer" onchange="document.getElementById('up-doc-alert').classList.toggle('hidden', !this.checked); if (window.app && app.upload && app.upload.checkDuplicateRealtime) app.upload.checkDuplicateRealtime();">
                                             <div class="w-11 h-6 bg-black rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white dark:after:bg-black after:border-gray-300 dark:after:border-black after:border after:rounded-full after:h-5 after:w-5 after:transition-all shadow-inner"></div>
                                         </label>
                                     </div>
@@ -8293,7 +8330,7 @@ html.theme-dark .ct-icon {
 
     <!-- KHAY CHỨA TOAST Z-INDEX CAO NHẤT -->
     <div id="toast-container" class="fixed left-0 w-full flex flex-col items-center gap-2 pointer-events-none z-[99999]" style="z-index: 99999 !important;"></div>
-<script src="/app.3f0e6fcb7ba1.js" onerror="if(!window.__app_fallback_loaded){window.__app_fallback_loaded=true;var s=document.createElement('script');s.src='/app.js?v=' + Date.now();document.head.appendChild(s);}"></script>
+<script src="/app.9462a1a6c634.js" onerror="if(!window.__app_fallback_loaded){window.__app_fallback_loaded=true;var s=document.createElement('script');s.src='/app.js?v=' + Date.now();document.head.appendChild(s);}"></script>
 </body>
 </html>
 
