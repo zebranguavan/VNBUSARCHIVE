@@ -16,7 +16,7 @@ Mỗi khi chỉnh sửa file trong `src/js/` hoặc `_core.html`, bạn **BẮT 
 ```bash
 node build-core.js
 ```
-Lệnh này sẽ gộp các file trong `src/js/` thành `public/app.js` (plain text), render `public/index.html` từ `_core.html`, sinh `public/_headers` từ `csp.json`, và biên dịch Tailwind CSS. **Tuyệt đối không** chỉnh sửa trực tiếp `public/app.js` hoặc `public/index.html` (đây là file được sinh tự động), và không nhúng script logic thủ công vào `_core.html`.
+Lệnh này sẽ gộp các file trong `src/js/` thành `public/app.js` (plain text), render `public/index.html` từ `_core.html`, sinh `public/_headers` từ `csp.json`, sinh `vercel.json` + `vercel/routes.js` (cấu hình triển khai Vercel, xem `doc/DEPLOY-VERCEL.md`), và biên dịch Tailwind CSS. **Tuyệt đối không** chỉnh sửa trực tiếp `public/app.js` hoặc `public/index.html` (đây là file được sinh tự động), và không nhúng script logic thủ công vào `_core.html`.
 
 ## 2. Quy trình đóng góp (Pull Request Process)
 

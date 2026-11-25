@@ -1,12 +1,16 @@
 {
   "scripts": {
-    "build": "node build-core.js && echo \"const FIREBASE_URL = '$FIREBASE_BUS_URL';\" > public/token.js"
+    "build": "node build-core.js && echo \"const FIREBASE_URL = '$FIREBASE_BUS_URL';\" > public/token.js",
+    "vercel:generate": "node vercel/generate.cjs",
+    "vercel:test": "node vercel/selftest.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
+    "@vercel/functions": "^3.11.3",
     "iconv-lite": "^0.7.3",
     "jsdom": "^29.1.1",
     "marked": "^15.0.0",
+    "node-html-parser": "^9.0.7",
     "resend": "^4.0.0"
   },
   "devDependencies": {

@@ -186,6 +186,14 @@ try {
     fs.writeFileSync(path.join(__dirname, 'public', '_routes.json'), JSON.stringify(routesConfig, null, 2));
     console.log('Đã tạo public/_routes.json (Chỉ route API và dynamic SSR sang Functions)');
 
+    // Sinh cấu hình cho Vercel (vercel.json + vercel/routes.js) từ csp.json và thư mục functions/
+    try {
+        const vercelInfo = require('./vercel/generate.cjs')(__dirname);
+        console.log(`Đã tạo vercel.json và vercel/routes.js (${vercelInfo.routes} route)`);
+    } catch (vErr) {
+        console.warn('Cảnh báo: không tạo được cấu hình Vercel:', vErr.message);
+    }
+
     // Build Tailwind CSS
     try {
         console.log('Đang biên dịch Tailwind CSS...');
