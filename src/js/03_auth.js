@@ -685,7 +685,7 @@ changePassword: async () => {
                         } else {
                             container.innerHTML = '';
                             app.captcha.widgetId = window.turnstile.render(container, {
-                                sitekey: '0x4AAAAAAC0MVeewmy6kwkTF',
+                                sitekey: '0x4AAAAAAGSSJeTvGD_5b34H',
                                 callback: app.captcha.onSuccess,
                                 'error-callback': app.captcha.onError,
                                 'timeout-callback': app.captcha.onError
