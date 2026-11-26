@@ -944,6 +944,10 @@ Object.assign(window.app, {
                 },
                 updateBlurBtn: () => {
                     const count = document.querySelectorAll('.blur-panel').length;
+                    const faceBlurCb = document.getElementById('up-face-blur-confirm');
+                    if (faceBlurCb) {
+                        faceBlurCb.checked = count > 0;
+                    }
                     const btn = document.getElementById('btn-add-blur');
                     if (btn) {
                         btn.innerHTML = `<i class="fa-solid fa-droplet-slash"></i> Làm mờ`;
@@ -2636,6 +2640,10 @@ Object.assign(window.app, {
                     if (app.upload.isBlockedByInteriorLimit) {
                         const alertMsg = document.getElementById('up-interior-alert-msg')?.innerText.trim();
                         return app.ui.showAlert(alertMsg || "Xe này chưa đủ điều kiện để tải lên ảnh nội thất.", null, null, { title: "Chưa đủ điều kiện" });
+                    }
+                    const faceBlurCb = document.getElementById('up-face-blur-confirm');
+                    if (faceBlurCb && !faceBlurCb.checked) {
+                        return app.ui.showAlert("Vui lòng xác nhận đã làm mờ khuôn mặt của tài xế, hành khách hoặc người đi đường (nếu có) trước khi tải ảnh lên.", null, null, { title: "Chưa xác nhận làm mờ" });
                     }
                     const q = app.upload.currentQuota;
                     if (q.limit !== null && q.count >= q.limit) {

@@ -2403,12 +2403,13 @@ cleanupState: () => {
                 },
                 formatPlateInput: (el) => {
                     let val = el.value;
-                    const upperVal = val.toUpperCase();
-                    if (val !== upperVal) {
+                    const cleanedVal = val.replace(/\s+/g, '').toUpperCase();
+                    if (val !== cleanedVal) {
                         const start = el.selectionStart;
-                        const end = el.selectionEnd;
-                        el.value = upperVal;
-                        el.setSelectionRange(start, end);
+                        const diff = val.length - cleanedVal.length;
+                        el.value = cleanedVal;
+                        const newPos = Math.max(0, (start || 0) - diff);
+                        el.setSelectionRange(newPos, newPos);
                     }
                 },
                 formatDateInput: (el) => {
@@ -9464,7 +9465,7 @@ let currentRouteProvName = null;
                                 <span id="crumb-vehicle-profile" class="font-bold text-black shrink min-w-0 block">${app.utils.displayPlate(vehicle.license_plate)}</span>
                             </div>
                             <div class="vehicle-hero-banner rounded-lg border border-black dark:border-white bg-black text-white relative overflow-hidden mb-3 shadow-sm">
-                                <div class="relative w-full min-h-[180px] sm:min-h-[220px] md:min-h-[260px] bg-black overflow-hidden flex items-center justify-center">
+                                <div class="relative w-full min-h-[180px] sm:min-h-[220px] md:min-h-[260px] bg-black overflow-hidden flex items-end justify-center">
                                     ${topPhoto ? `
                                     <img loading="lazy" decoding="async" src="${app.utils.getProxiedUrl(topPhoto.url, 'vehicle-top.jpg', 'full')}" onerror="app.utils.fallbackHeroImage(this, 'vehiclePhotosCache', 0)" onclick="app.views.loadDetail(${topPhoto.id})" class="absolute inset-0 w-full h-full object-cover object-center block cursor-pointer transition duration-300">
                                     ` : `
@@ -12075,8 +12076,12 @@ Object.assign(window.app, {
                 } else if (topic === 'policy_violation') {
                     if (data.status !== 'approved') throw new Error("Chỉ có thể báo cáo các tác phẩm đã được duyệt trên hệ thống.");
                 }
+                const proxyUrl = app.utils.getProxiedUrl(data.url, 'preview.jpg', 'thumb');
+                if (!proxyUrl || proxyUrl === 'SANDBOX_DELETED') {
+                    throw new Error("Ảnh đã bị xóa khỏi hệ thống.");
+                }
                 app.contact.currentPreviewId = photoId;
-                imgEl.src = app.utils.getProxiedUrl(data.url, 'preview.jpg', 'thumb');
+                imgEl.src = proxyUrl;
                 document.getElementById('contact-preview-plate').innerText = app.utils.displayPlate(data.license_plate);
                 document.getElementById('contact-preview-op').innerText = data.operator || 'N/A';
             } catch (err) {
@@ -12116,8 +12121,12 @@ Object.assign(window.app, {
                 if (!app.user || data.uploader_id !== app.user.id) {
                     throw new Error("Đây không phải là ảnh do bạn đăng tải! Vui lòng chỉ chọn link ảnh của chính bạn trên hệ thống.");
                 }
+                const proxyUrl = app.utils.getProxiedUrl(data.url, 'preview.jpg', 'thumb');
+                if (!proxyUrl || proxyUrl === 'SANDBOX_DELETED') {
+                    throw new Error("Ảnh đã bị xóa khỏi hệ thống.");
+                }
                 app.contact.currentOrigPreviewId = photoId;
-                if (imgEl) imgEl.src = app.utils.getProxiedUrl(data.url, 'preview.jpg', 'thumb');
+                if (imgEl) imgEl.src = proxyUrl;
                 document.getElementById('contact-orig-preview-plate').innerText = app.utils.displayPlate(data.license_plate);
                 document.getElementById('contact-orig-preview-op').innerText = data.operator || 'N/A';
             } catch (err) {
@@ -18251,6 +18260,10 @@ Object.assign(window.app, {
                 },
                 updateBlurBtn: () => {
                     const count = document.querySelectorAll('.blur-panel').length;
+                    const faceBlurCb = document.getElementById('up-face-blur-confirm');
+                    if (faceBlurCb) {
+                        faceBlurCb.checked = count > 0;
+                    }
                     const btn = document.getElementById('btn-add-blur');
                     if (btn) {
                         btn.innerHTML = `<i class="fa-solid fa-droplet-slash"></i> Làm mờ`;
@@ -19943,6 +19956,10 @@ Object.assign(window.app, {
                     if (app.upload.isBlockedByInteriorLimit) {
                         const alertMsg = document.getElementById('up-interior-alert-msg')?.innerText.trim();
                         return app.ui.showAlert(alertMsg || "Xe này chưa đủ điều kiện để tải lên ảnh nội thất.", null, null, { title: "Chưa đủ điều kiện" });
+                    }
+                    const faceBlurCb = document.getElementById('up-face-blur-confirm');
+                    if (faceBlurCb && !faceBlurCb.checked) {
+                        return app.ui.showAlert("Vui lòng xác nhận đã làm mờ khuôn mặt của tài xế, hành khách hoặc người đi đường (nếu có) trước khi tải ảnh lên.", null, null, { title: "Chưa xác nhận làm mờ" });
                     }
                     const q = app.upload.currentQuota;
                     if (q.limit !== null && q.count >= q.limit) {
@@ -21894,7 +21911,7 @@ Object.assign(window.app, {
                         const hoursSinceUpload = (Date.now() - uploadedTime) / (1000 * 60 * 60);
                         if (hoursSinceUpload < 24) {
                             const remainingHours = Math.ceil(24 - hoursSinceUpload);
-                            return app.ui.showAlert(`Ảnh này mới được đăng tải. Bạn chỉ có thể xóa hoặc yêu cầu xóa ảnh sau khi đã trôi qua 24 giờ kể từ lúc đăng (Vui lòng quay lại sau khoảng ${remainingHours} tiếng nữa).`);
+                            return app.ui.showAlert(`Ảnh này mới được đăng tải. Bạn chỉ có thể xóa hoặc yêu cầu xóa ảnh sau khi đã trôi qua 24 giờ kể từ lúc đăng (Vui lòng quay lại sau khoảng ${remainingHours} tiếng nữa). <a href="https://www.vnbusarchive.io.vn/help/1575389370343620640" target="_blank" rel="noopener noreferrer" class="underline font-bold">Tại saooo???</a>`);
                         }
                     }
 
@@ -28024,6 +28041,7 @@ if (cbQuality) newSubroles.push('quality_aud');
                             const targetProvince = isReqCoach ? null : (provEl ? provEl.value.trim() : (req.new_data.province || (req.new_data.route_name.includes(' - ') ? req.new_data.route_name.split(' - ')[1].trim() : null)));
                             const targetRouteName = (isReqCoach || !targetProvince) ? expectedRouteNo : `${expectedRouteNo} - ${targetProvince}`;
 
+                            const oldRouteName = req.new_data.old_route_name || req.new_data.route_name;
                             if (!desc && !shortPath && !isInactive && !metadataObj) {
                                 const { error: delErr } = await window.sb.from('route_info').delete().eq('route_name', targetRouteName);
                                 if (delErr) throw delErr;
@@ -28056,7 +28074,6 @@ if (cbQuality) newSubroles.push('quality_aud');
                             if (app.route) app.route.cachedRoutes = null;
                             
                             // Nếu đổi tên tuyến hoặc đổi tỉnh thành, di chuyển dữ liệu ảnh & lịch sử từ tuyến cũ sang tuyến mới và xóa tuyến cũ
-                            const oldRouteName = req.new_data.old_route_name || req.new_data.route_name;
                             if (oldRouteName && oldRouteName !== targetRouteName) {
                                 if (app.route && app.route.migrateRouteData) {
                                     await app.route.migrateRouteData(oldRouteName, targetRouteName, expectedRouteNo, targetProvince);
