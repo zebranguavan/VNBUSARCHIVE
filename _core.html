@@ -6790,9 +6790,13 @@ html.theme-dark .ct-icon {
 
                 let config = null;
                 const WORKERS_DEV_FALLBACK = 'https://vnbusarchive-middle-api.nghoanganhtuann.workers.dev';
+                // Chỉ bản chạy chính thức (vnbusarchive.io.vn) mới được dùng hạ tầng dự phòng của dự án gốc.
+                // Bản tự triển khai KHÔNG được gửi token đăng nhập hay dữ liệu sang máy chủ của tác giả gốc.
+                const IS_ORIGINAL_HOST = /(^|\.)vnbusarchive\.io\.vn$/i.test(window.location.hostname);
                 try {
                     const cached = sessionStorage.getItem('VNBA_SYS_CONF');
                     if (cached) config = JSON.parse(cached);
+                    if (!IS_ORIGINAL_HOST && config && (!config.SUPABASE_KEY || config.SUPABASE_URL === WORKERS_DEV_FALLBACK)) config = null;
                 } catch(e) {}
                 
                 if (!config) {
@@ -6802,6 +6806,9 @@ html.theme-dark .ct-icon {
                     } catch (e) {}
                     
                     if (!config || !config.SUPABASE_KEY) {
+                        if (!IS_ORIGINAL_HOST) {
+                            throw new Error('Máy chủ chưa cấu hình SUPABASE_URL / SUPABASE_KEY: /api/system không trả về khóa. Hãy đặt biến môi trường rồi deploy lại, sau đó đóng tab và mở lại.');
+                        }
                         config = {
                             FIREBASE_URL: 'https://hbds-bus-tracker-default-rtdb.firebaseio.com/buses.json',
                             SUPABASE_URL: WORKERS_DEV_FALLBACK,
@@ -6866,7 +6873,7 @@ html.theme-dark .ct-icon {
                                 const isRestQuery = urlStr.includes('/rest/v1/');
 
                                 // Nếu là truy vấn dữ liệu DB thông thường (/rest/v1/*), gọi trực tiếp Render PostgREST để KHÔNG TỐN quota 100k Cloudflare Worker!
-                                if (isRestQuery) {
+                                if (isRestQuery && IS_ORIGINAL_HOST) {
                                     // Tạo danh sách endpoint ưu tiên với cơ chế failover đa tầng
                                     const primaryRender = activeRenderPool[activeRenderIndex];
                                     const secondaryRender = activeRenderPool[activeRenderIndex === 0 ? 1 : 0];
@@ -6977,6 +6984,9 @@ html.theme-dark .ct-icon {
                             } catch (err) {
                                 if (err.message && err.message.includes('VNBUSARCHIVE')) throw err;
                                 console.error("[DB Connection Error] Details:", err);
+                                if (!IS_ORIGINAL_HOST) {
+                                    throw new Error('Không kết nối được tới máy chủ dữ liệu (' + (err && err.message ? err.message : err) + '). Kiểm tra SUPABASE_URL trong biến môi trường; mở F12 > Console để xem chi tiết.');
+                                }
                                 throw new Error("VNBUSARCHIVE hiện đang quá tải vì có quá nhiều người sử dụng. Bạn thử lại sau nhé!");
                             }
                         }
@@ -7011,7 +7021,9 @@ html.theme-dark .ct-icon {
                 window.renderModernStatusScreen({
                     title: 'KHÔNG THỂ KẾT NỐI ĐẾN MÁY CHỦ',
                     label: 'THÔNG TIN SỰ CỐ / WEB LOG',
-                    reason: 'VNBUSARCHIVE hiện đang quá tải vì có quá nhiều người sử dụng. Bạn thử lại sau nhé!',
+                    reason: /(^|\.)vnbusarchive\.io\.vn$/i.test(window.location.hostname)
+                        ? 'VNBUSARCHIVE hiện đang quá tải vì có quá nhiều người sử dụng. Bạn thử lại sau nhé!'
+                        : String(errMsg).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
                     contactSuffix: 'nếu sự cố vẫn tiếp diễn! Xin cảm ơn.'
                 });
             }
