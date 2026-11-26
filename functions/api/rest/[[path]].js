@@ -40,8 +40,16 @@ export async function onRequest(context) {
         });
     }
 
-    const targetBase = env.SUPABASE_URL || 'https://vnbusarchive-middle-api.nghoanganhtuann.workers.dev';
-    const fallbackBase = 'https://vnbusarchive-middle-api.nghoanganhtuann.workers.dev';
+    const AUTHOR_WORKER = 'https://vnbusarchive-middle-api.nghoanganhtuann.workers.dev';
+    // Chỉ bản chạy chính thức mới được dùng/failover sang hạ tầng của dự án gốc; bản tự triển khai phải tự cấu hình SUPABASE_URL.
+    const isOriginalHost = (request.headers.get('host') || '').includes('vnbusarchive.io.vn');
+    const targetBase = env.SUPABASE_URL || (isOriginalHost ? AUTHOR_WORKER : '');
+    if (!targetBase) {
+        return new Response(JSON.stringify({ error: 'Máy chủ chưa cấu hình biến môi trường SUPABASE_URL.' }), {
+            status: 500, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+        });
+    }
+    const fallbackBase = isOriginalHost ? AUTHOR_WORKER : targetBase;
     const reqUrl = new URL(request.url);
     const subPath = Array.isArray(params.path) ? params.path.join('/') : (params.path || '');
     
