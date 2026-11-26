@@ -4,13 +4,16 @@ async function handleSendEmail(request, env, body) {
     if (!authHeader) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' }});
 
     // Forward request trực tiếp tới Middleware (nơi quản lý Resend API & Database auth users)
-    const middlewareBase = env.SUPABASE_URL || 'https://api.vnbusarchive.io.vn';
+    // Chỉ bản chạy chính thức mới được dùng/failover sang hạ tầng của dự án gốc.
+    const isOriginalHost = (request.headers.get('host') || '').includes('vnbusarchive.io.vn');
+    const middlewareBase = env.SUPABASE_URL || (isOriginalHost ? 'https://api.vnbusarchive.io.vn' : '');
+    if (!middlewareBase) return new Response(JSON.stringify({ error: 'Máy chủ chưa cấu hình biến môi trường SUPABASE_URL.' }), { status: 500, headers: { 'Content-Type': 'application/json' }});
     const fallbackBase = 'https://vnbusarchive-middle-api.nghoanganhtuann.workers.dev';
 
     let targetEndpoints = [
         `${middlewareBase.replace(/\/+$/, '')}/api/manager/send-email`
     ];
-    if (!middlewareBase.includes('workers.dev')) {
+    if (isOriginalHost && !middlewareBase.includes('workers.dev')) {
         targetEndpoints.push(`${fallbackBase}/api/manager/send-email`);
     }
 

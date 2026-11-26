@@ -26,6 +26,12 @@ function handleConfig(request, env) {
         return new Response(JSON.stringify({ error: 'Forbidden - Domain kh�ng h?p l?' }), { status: 403, headers: { 'Content-Type': 'application/json' }});
     }
 
+    if (!env.SUPABASE_URL || !env.SUPABASE_KEY) {
+        return new Response(JSON.stringify({ error: 'Máy chủ chưa cấu hình SUPABASE_URL / SUPABASE_KEY.' }), {
+            status: 500, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
+        });
+    }
+
     return new Response(JSON.stringify({
         FIREBASE_URL: env.FIREBASE_URL,
         SUPABASE_URL: env.SUPABASE_URL,
