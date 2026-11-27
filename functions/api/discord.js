@@ -4,7 +4,7 @@ function validateOriginAndReferer(request) {
     const referer = request.headers.get('referer') || '';
     const origin = request.headers.get('origin') || '';
     const host = request.headers.get('host') || '';
-    const isProduction = host.includes('vnbusarchive.io.vn');
+    const isProduction = host.includes('vnbusarchive.vercel.app');
     
     if (!isProduction) return true;
     if (!origin && !referer) return false;
@@ -13,15 +13,13 @@ function validateOriginAndReferer(request) {
         if (!str) return false;
         try {
             const u = new URL(str);
-            return u.hostname === 'vnbusarchive.io.vn' || u.hostname.endsWith('.vnbusarchive.io.vn');
+            return u.hostname === 'vnbusarchive.vercel.app' || u.hostname.endsWith('.vnbusarchive.vercel.app');
         } catch (e) {
             return false;
         }
     }
     return checkDomain(origin) || checkDomain(referer);
 }
-
-import { Resend } from 'resend';
 
 
 const generateTicketId = () => {
@@ -111,7 +109,7 @@ const buildContactEmailHtml = ({ name, ticketId, supportType, message }) => {
 
                     <tr>
                         <td align="center" style="font-family: 'Be Vietnam Pro', Arial, sans-serif; font-size: 13px; line-height: 1.6; color: #666666;">
-                            Bạn không thể trả lời email này, vui lòng liên hệ qua email <a href="mailto:lienhe@vnbusarchive.io.vn" style="color: #000000; text-decoration: underline; font-weight: 500;">lienhe@vnbusarchive.io.vn</a> để tiếp tục.
+                            Bạn không thể trả lời email này, vui lòng liên hệ qua email <a href="mailto:lienhe@vnbusarchive.vercel.app" style="color: #000000; text-decoration: underline; font-weight: 500;">lienhe@vnbusarchive.vercel.app</a> để tiếp tục.
                         </td>
                     </tr>
 
@@ -503,10 +501,10 @@ async function handleContactSubmit(request, env) {
     if (photoId) {
         if (String(photoId).startsWith('user:')) {
             const uName = String(photoId).replace('user:', '');
-            rawText += `**Hồ sơ User vi phạm \\***\nhttps://www.vnbusarchive.io.vn/user/${encodeURIComponent(uName)}\n\n`;
+            rawText += `**Hồ sơ User vi phạm \\***\nhttps://vnbusarchive.vercel.app/${encodeURIComponent(uName)}\n\n`;
         } else {
             const titleStr = (topic === 'copyright' || topic === 'report_violation') ? 'Nội dung vi phạm \\*' : (topic === 'policy_violation' ? 'Tác phẩm trên VNBUSARCHIVE \\*' : 'Nội dung liên quan \\*');
-            rawText += `**${titleStr}**\nhttps://www.vnbusarchive.io.vn/photo/${photoId}\n\n`;
+            rawText += `**${titleStr}**\nhttps://vnbusarchive.vercel.app/photo/${photoId}\n\n`;
         }
     } else if (externalLink) {
         try {
@@ -563,12 +561,10 @@ async function handleContactSubmit(request, env) {
         body: JSON.stringify({ embeds: [embed] })
     });
 
-    // 5. Gửi Email tự động cho User qua Resend
-    let resendPromise = Promise.resolve();
-    if (env.RESEND_API_KEY && contactInfo && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactInfo)) {
+    // 5. Gửi Email tự động cho User qua AgentMail
+    let emailPromise = Promise.resolve();
+    if (env.AGENTMAIL_API_KEY && env.AGENTMAIL_INBOX_ID && contactInfo && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactInfo)) {
         try {
-            const resend = new Resend(env.RESEND_API_KEY);
-            
             let userMsg = description || '';
             if (topic === 'copyright') {
                 const typeStr = (copyrightType === 'external') ? 'Ảnh trên nền tảng của tôi bị đăng trái luật lên nền tảng bên ngoài' : 'Ảnh của tôi bị đăng trái luật lên nền tảng';
@@ -577,10 +573,10 @@ async function handleContactSubmit(request, env) {
             if (photoId) {
                 if (String(photoId).startsWith('user:')) {
                     const uName = String(photoId).replace('user:', '');
-                    userMsg = `Hồ sơ User liên quan: https://www.vnbusarchive.io.vn/user/${encodeURIComponent(uName)}\n\n${userMsg}`;
+                    userMsg = `Hồ sơ User liên quan: https://vnbusarchive.vercel.app/user/${encodeURIComponent(uName)}\n\n${userMsg}`;
                 } else {
                     const titleStr = (topic === 'copyright' || topic === 'report_violation') ? 'Nội dung vi phạm' : 'Ảnh liên quan';
-                    userMsg = `${titleStr}: https://www.vnbusarchive.io.vn/photo/${photoId}\n\n${userMsg}`;
+                    userMsg = `${titleStr}: https://vnbusarchive.vercel.app/photo/${photoId}\n\n${userMsg}`;
                 }
             } else if (externalLink) {
                 const titleStr = (topic === 'copyright' || topic === 'report_violation') ? 'Nội dung vi phạm' : 'Link liên quan';
@@ -601,20 +597,32 @@ async function handleContactSubmit(request, env) {
                 message: userMsg
             });
 
-            resendPromise = resend.emails.send({
-                from: 'VNBUSARCHIVE <noreply@vnbusarchive.io.vn>',
-                to: [contactInfo],
-                subject: `[Ticket #${ticketId}] Thông tin hỗ trợ của bạn đã được gửi - VNBUSARCHIVE`,
-                html: emailHtml
+            emailPromise = fetch(
+                `https://api.agentmail.to/v0/inboxes/${encodeURIComponent(env.AGENTMAIL_INBOX_ID)}/messages/send`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${env.AGENTMAIL_API_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Idempotency-Key': `ticket-${ticketId}`
+                    },
+                    body: JSON.stringify({
+                        to: contactInfo,
+                        subject: `[Ticket #${ticketId}] Thông tin hỗ trợ của bạn đã được gửi - VNBUSARCHIVE`,
+                        html: emailHtml
+                    })
+                }
+            ).then(r => {
+                if (!r.ok) console.error("Lỗi gửi email AgentMail, HTTP", r.status);
             });
         } catch (emailErr) {
-            console.error("Lỗi khởi tạo Resend email:", emailErr);
+            console.error("Lỗi khởi tạo email AgentMail:", emailErr);
         }
     }
 
     const [discordRes] = await Promise.all([
         discordPromise,
-        resendPromise.catch(e => console.error("Lỗi gửi email Resend:", e))
+        emailPromise.catch(e => console.error("Lỗi gửi email AgentMail:", e))
     ]);
 
     if (!discordRes) {
