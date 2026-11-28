@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { storeImage, removeImage } from '../../../shared/image-store.js';
 
 export async function onRequest(context) {
     const { request, env } = context;
@@ -59,41 +60,15 @@ export async function onRequest(context) {
         const safeHash = Array.from(randomValues).map(b => b.toString(16).padStart(2, '0')).join('');
         const fileName = `edited_${Date.now()}_${safeHash}.${ext}`;
         
-        const newFormData = new FormData();
-        newFormData.append('file', file, fileName);
-
-        const uploadResult = await fetch('https://cdn.vnbusarchive.io.vn/upload', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${env.CF_IMGBED_TOKEN}` },
-            body: newFormData
-        }).then(res => res.json());
-
-        if (!uploadResult || !uploadResult[0] || !uploadResult[0].src) {
-            console.error('[CDN UPLOAD ERROR]:', JSON.stringify(uploadResult));
-            throw new Error(`Lỗi phản hồi từ máy chủ lưu trữ ảnh: ${JSON.stringify(uploadResult)}`);
-        }
-        let rawSrc = uploadResult[0].src;
-        const finalUrl = rawSrc.startsWith('/') ? `https://cdn.vnbusarchive.io.vn${rawSrc}` : rawSrc;
+        const finalUrl = await storeImage({ request, env, sbAdmin, file, fileName });
 
         // Update photo DB
         const { error: updateErr } = await sbAdmin.from('photos').update({ url: finalUrl }).eq('id', photoId);
         if (updateErr) throw updateErr;
 
         // Delete old from CDN
-        if (oldUrl && oldUrl.includes('vnbusarchive.io.vn')) {
-            try {
-                const oldUrlObj = new URL(oldUrl);
-                const oldFileName = oldUrlObj.pathname.split('/').pop();
-                if (oldFileName) {
-                    const safeFileName = encodeURIComponent(oldFileName);
-                    await fetch(`https://cdn.vnbusarchive.io.vn/api/manage/delete/${safeFileName}`, {
-                        method: 'DELETE',
-                        headers: { 'Authorization': `Bearer ${env.CF_IMGBED_TOKEN}` }
-                    }).catch(() => {});
-                }
-            } catch (e) {
-                // Ignore delete errors
-            }
+        if (oldUrl && oldUrl !== finalUrl) {
+            await removeImage({ request, env, sbAdmin, url: oldUrl });
         }
 
         // Log
