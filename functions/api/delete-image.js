@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { removeImage } from '../../shared/image-store.js';
 function validateOriginAndReferer(request) {
     const referer = request.headers.get('referer') || '';
     const origin = request.headers.get('origin') || '';
@@ -98,29 +99,11 @@ export async function onRequest(context) {
             return new Response(JSON.stringify({ success: true, message: 'Anh du lieu cu da duoc xoa khoi co so du lieu.' }), { status: 200, headers: { 'Content-Type': 'application/json' } });
         }
 
-        const urlObj = new URL(targetUrl);
-        const fileName = urlObj.pathname.split('/').pop();
-        const safeFileName = encodeURIComponent(fileName);
-
-        console.log(`[DEBUG] Dang goi API CF ImgBed de xoa: ${safeFileName}`);
-
-        const deleteUrl = `https://cdn.vnbusarchive.io.vn/api/manage/delete/${safeFileName}`;
-        
-        const deleteResponse = await fetch(deleteUrl, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${env.CF_IMGBED_TOKEN}`
-            }
-        });
-
-        let deleteResult = null;
-        try { deleteResult = await deleteResponse.json(); } catch(e) {}
-
-        if (deleteResponse.ok && deleteResult) {
-            console.log(`[DEBUG] Da xoa vinh vien anh tren CDN: ${fileName}`);
-        } else {
-            // CDN xoa that bai - file co the da bi xoa truoc hoac khong ton tai
-            console.log(`[WARN] Loi xoa anh CF ImgBed (${deleteResponse.status}):`, deleteResult);
+        console.log('[DEBUG] Dang xoa file anh khoi kho luu tru');
+        const removed = await removeImage({ request, env, sbAdmin: supabaseAdmin, url: targetUrl });
+        if (!removed) {
+            // File co the da bi xoa truoc, hoac khong thuoc kho luu tru cua du an nay
+            console.log('[WARN] Khong xoa duoc file anh khoi kho luu tru');
         }
 
         // Du CDN xoa thanh cong hay khong, van xoa row DB de tranh anh "ma" trong DB

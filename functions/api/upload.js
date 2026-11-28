@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { storeImage, removeImage } from '../../shared/image-store.js';
 function validateOriginAndReferer(request) {
     const referer = request.headers.get('referer') || '';
     const origin = request.headers.get('origin') || '';
@@ -169,25 +170,11 @@ export async function onRequest(context) {
         const safeHash = Array.from(randomValues).map(b => b.toString(16).padStart(2, '0')).join('');
         const fileName = `img_${Date.now()}_${safeHash}.${fileExtension}`;
         
-        const newFormData = new FormData();
-        newFormData.append('file', file, fileName);
-
         let finalOptimizedUrl = '';
 
         if (isAvatar) {
-            console.log(`[DEBUG] Tiến hành tải Avatar lên CDN: ${fileName}`);
-            const uploadResult = await fetch('https://cdn.vnbusarchive.io.vn/upload', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${env.CF_IMGBED_TOKEN}` },
-                body: newFormData
-            }).then(res => res.json());
-
-            if (!uploadResult || !uploadResult[0] || !uploadResult[0].src) {
-                console.error('[CDN UPLOAD ERROR (Avatar)]:', JSON.stringify(uploadResult));
-                throw new Error(`Lỗi phản hồi từ CDN: ${JSON.stringify(uploadResult)}`);
-            }
-            let rawSrc = uploadResult[0].src;
-            finalOptimizedUrl = rawSrc.startsWith('/') ? `https://cdn.vnbusarchive.io.vn${rawSrc}` : rawSrc;
+            console.log(`[DEBUG] Tiến hành lưu Avatar: ${fileName}`);
+            finalOptimizedUrl = await storeImage({ request, env, sbAdmin, file, fileName });
 
             let oldAvatarUrl = null;
             const { data: oldProfile } = await sbAdmin.from('profiles').select('avatar_url').eq('id', userId).single();
@@ -200,21 +187,9 @@ export async function onRequest(context) {
                 }
             }
 
-            if (oldAvatarUrl && oldAvatarUrl !== finalOptimizedUrl && oldAvatarUrl.includes('vnbusarchive')) {
-                try {
-                    const oldUrlObj = new URL(oldAvatarUrl);
-                    const oldFileName = oldUrlObj.pathname.split('/').pop();
-                    if (oldFileName) {
-                        const safeFileName = encodeURIComponent(oldFileName);
-                        console.log(`[DEBUG] Đang xóa avatar cũ khỏi CDN: ${safeFileName}`);
-                        await fetch(`https://cdn.vnbusarchive.io.vn/api/manage/delete/${safeFileName}`, {
-                            method: 'DELETE',
-                            headers: { 'Authorization': `Bearer ${env.CF_IMGBED_TOKEN}` }
-                        }).catch(e => console.warn('[WARN] Lỗi mạng khi xóa avatar cũ:', e));
-                    }
-                } catch (delErr) {
-                    console.warn('[WARN] Lỗi khi xử lý xóa avatar cũ:', delErr);
-                }
+            if (oldAvatarUrl && oldAvatarUrl !== finalOptimizedUrl) {
+                console.log('[DEBUG] Đang xóa avatar cũ');
+                await removeImage({ request, env, sbAdmin, url: oldAvatarUrl });
             }
 
             const { error: profileErr } = await sbAdmin.from('profiles').update({ avatar_url: finalOptimizedUrl }).eq('id', userId);
@@ -224,19 +199,8 @@ export async function onRequest(context) {
 
             return new Response(JSON.stringify({ success: true, url: finalOptimizedUrl }), { status: 200, headers: { 'Content-Type': 'application/json' }});
         } else {
-            console.log(`[DEBUG] Tiến hành tải ảnh chờ duyệt trực tiếp lên CDN: ${fileName}`);
-            const uploadResult = await fetch('https://cdn.vnbusarchive.io.vn/upload', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${env.CF_IMGBED_TOKEN}` },
-                body: newFormData
-            }).then(res => res.json());
-
-            if (!uploadResult || !uploadResult[0] || !uploadResult[0].src) {
-                console.error('[CDN UPLOAD ERROR]:', JSON.stringify(uploadResult));
-                throw new Error(`Lỗi phản hồi từ CDN: ${JSON.stringify(uploadResult)}`);
-            }
-            let rawSrc = uploadResult[0].src;
-            finalOptimizedUrl = rawSrc.startsWith('/') ? `https://cdn.vnbusarchive.io.vn${rawSrc}` : rawSrc;
+            console.log(`[DEBUG] Tiến hành lưu ảnh chờ duyệt: ${fileName}`);
+            finalOptimizedUrl = await storeImage({ request, env, sbAdmin, file, fileName });
 
             const { error: vErr } = await sbAdmin
                 .from('vehicles')
