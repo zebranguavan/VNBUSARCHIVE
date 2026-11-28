@@ -9,8 +9,9 @@ const sql = fs.readFileSync(new URL('../migrations/20261128000000_init_schema.sq
 // --- Giả lập môi trường Supabase ---
 await db.exec(`
   create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
+  create schema storage; create table storage.buckets (id text primary key, name text not null, public boolean not null default false);
   create schema auth;
-  create table auth.users (id uuid primary key, email text);
+  create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb default '{}'::jsonb);
   create function auth.uid() returns uuid language sql stable as $$
     select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
   grant usage on schema auth to anon, authenticated, service_role;
@@ -20,7 +21,6 @@ await db.exec(`
   alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
 `);
 const A='11111111-1111-1111-1111-111111111111', B='22222222-2222-2222-2222-222222222222', ADM='33333333-3333-3333-3333-333333333333', BAN='44444444-4444-4444-4444-444444444444';
-await db.exec(`insert into auth.users(id,email) values ('${A}','a@x'),('${B}','b@x'),('${ADM}','adm@x'),('${BAN}','ban@x')`);
 
 console.log('1) Chạy migration');
 await db.exec(sql);
@@ -28,6 +28,11 @@ const tables = (await db.query(`select count(*)::int n from information_schema.t
 assert.equal(tables, 23); console.log('  ✓ migration chạy trọn vẹn, tạo đúng', tables, 'bảng');
 const fns = (await db.query(`select proname from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and proname like 'get\\_%' order by 1`)).rows.map(r=>r.proname);
 assert.deepEqual(fns, ['get_home_stats','get_model_stats','get_operator_plates','get_operator_stats','get_trending_photos_24h','get_user_profile_stats']); console.log('  ✓ đủ 6 hàm RPC');
+const cols = (await db.query(`select column_name from information_schema.columns where table_schema='public' and table_name='photos'`)).rows.map(r => r.column_name);
+assert.ok(cols.includes('suspected_exif_fraud') && cols.includes('needs_third')); console.log('  ✓ photos có cột suspected_exif_fraud và needs_third');
+const bk = (await db.query(`select id, public from storage.buckets`)).rows; assert.deepEqual(bk, [{ id: 'photos', public: true }]); console.log('  ✓ bucket công khai "photos" được tạo');
+await db.exec(`insert into auth.users(id,email,raw_user_meta_data) values
+  ('${A}','a@x','{"username":"alice"}'),('${B}','b@x','{"username":"bob"}'),('${ADM}','adm@x','{"username":"admin1"}'),('${BAN}','ban@x','{"username":"banned1"}')`);
 
 // Dữ liệu ban đầu bằng service_role
 const as = async (role, uid, fn) => { await db.exec(`set role ${role}; select set_config('request.jwt.claim.sub','${uid||''}', false)`); try { return await fn(); } finally { await db.exec('reset role'); } };
@@ -35,9 +40,9 @@ const q = (s, p) => db.query(s, p);
 const fails = async (s, re, msg) => { let err; try { await q(s); } catch (e) { err = e; } assert.ok(err, 'phải lỗi: ' + msg); if (re) assert.match(err.message, re, msg); console.log('  ✓', msg); };
 
 await db.exec(`set role service_role`);
-await q(`insert into public.profiles(id,username) values ('${A}','alice'),('${B}','bob')`);
-await q(`insert into public.profiles(id,username,role) values ('${ADM}','admin1','admin')`);
-await q(`insert into public.profiles(id,username,ban_status) values ('${BAN}','banned1','{"banned": true}')`);
+assert.equal((await q(`select count(*)::int n from public.profiles`)).rows[0].n, 4); console.log('  ✓ trigger tự tạo 4 hồ sơ khi có tài khoản mới trong auth.users');
+await q(`update public.profiles set role='admin' where id='${ADM}'`);
+await q(`update public.profiles set ban_status='{"banned": true}' where id='${BAN}'`);
 await q(`insert into public.photos(url,license_plate,operator,type,route_no,status,uploader_id,views) values
   ('u1','29B-1','Hà Nội','bus','32','approved','${A}',5),
   ('u2','29B-2','Hà Nội','bus','33','pending','${A}',0),
@@ -62,8 +67,9 @@ assert.equal((await q(`select views from public.photos where id=1`)).rows[0].vie
 
 console.log('3) Người dùng thường (Alice)');
 await as('authenticated', A, async () => {
-  await q(`insert into public.profiles(id,username,avatar_url,preferences) values ('${A}','alice2','a.png','{}') on conflict (id) do update set username=excluded.username, avatar_url=excluded.avatar_url, preferences=excluded.preferences`);
-  console.log('  ✓ upsert hồ sơ của chính mình (đúng cách trình duyệt làm)');
+  await q(`insert into public.profiles(id,username,avatar_url,preferences) values ('${A}','alice2','a.png','{}') on conflict (id) do update set id=excluded.id, username=excluded.username, avatar_url=excluded.avatar_url, preferences=excluded.preferences`);
+  console.log('  ✓ upsert hồ sơ của chính mình, đúng câu lệnh PostgREST sinh ra (gồm cột id trong SET)');
+  assert.equal((await q(`select id from public.profiles where username='alice2'`)).rows[0].id, ''+A+''); 
   await fails(`update public.profiles set role='admin' where id='${A}'`, /permission denied/i, 'KHÔNG tự nâng role thành admin');
   await fails(`update public.profiles set ban_status='{"banned": false}' where id='${A}'`, /permission denied/i, 'KHÔNG tự sửa ban_status');
   await fails(`update public.profiles set reputation_score=9999 where id='${A}'`, /permission denied/i, 'KHÔNG tự sửa điểm uy tín');
@@ -131,4 +137,63 @@ await as('service_role', null, async () => {
   await q(`insert into public.photo_reviews(photo_id,admin_id,action) values (1,'${ADM}','approve') on conflict (photo_id,admin_id) do update set action=excluded.action`);
   console.log('  ✓ service_role (API server) đọc/ghi được, upsert photo_reviews theo (photo_id,admin_id)');
 });
+
+console.log('9) Tự tạo hồ sơ khi đăng ký (trigger trên auth.users)');
+const C='55555555-5555-5555-5555-555555555555', D='66666666-6666-6666-6666-666666666666', E='77777777-7777-7777-7777-777777777777', F='88888888-8888-8888-8888-888888888888';
+await db.exec(`insert into auth.users(id,email,raw_user_meta_data) values
+  ('${C}','c@x','{"username":"mot_ten_rat_dai_vuot_qua_hai_muoi_ky_tu"}'),
+  ('${D}','d@x','{"username":"ALICE2"}'),
+  ('${E}','nguyenvan@x.com','{}')`);
+await db.exec(`insert into auth.users(id,email) values ('${F}', null)`);
+const pr = Object.fromEntries((await q(`select id, username from public.profiles where id in ('${C}','${D}','${E}','${F}')`)).rows.map(r => [r.id, r.username]));
+assert.equal(pr[C].length, 20); console.log('  ✓ tên quá dài bị cắt còn 20 ký tự:', pr[C]);
+assert.ok(pr[D] && pr[D].toLowerCase() !== 'alice2' && pr[D].toLowerCase().startsWith('alice2_')); console.log('  ✓ tên trùng (khác hoa/thường) KHÔNG làm hỏng đăng ký, tự thêm hậu tố:', pr[D]);
+assert.equal(pr[E], 'nguyenvan'); console.log('  ✓ không có metadata thì lấy phần trước @ của email:', pr[E]);
+assert.equal(pr[F], 'User'); console.log("  ✓ không có cả email lẫn metadata thì dùng 'User'");
+await as('authenticated', A, async () => {
+  await fails(`select public.create_profile_for_auth_user((select u from auth.users u limit 1))`, /permission denied/i, 'người dùng KHÔNG gọi được hàm tạo hồ sơ trực tiếp');
+  await q(`update public.profiles set id='${B}' where id='${A}'`).catch(() => {});
+});
+assert.equal((await q(`select username from public.profiles where id='${A}'`)).rows.length, 1); console.log('  ✓ không đổi được id sang tài khoản khác (id giữ nguyên)');
+
+console.log('10) Project đã chạy BẢN CŨ rồi chạy file sửa lỗi (mô phỏng đúng tình huống của bạn)');
+const db2 = new PGlite();
+await db2.exec(`
+  create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;
+  create schema storage; create table storage.buckets (id text primary key, name text not null, public boolean not null default false);
+  create schema auth; create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb default '{}'::jsonb);
+  create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
+  grant usage on schema auth to anon, authenticated, service_role; grant execute on function auth.uid() to anon, authenticated, service_role;
+  alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+  alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+  alter default privileges in schema public grant all on functions to anon, authenticated, service_role;`);
+await db2.exec(sql);
+// đưa về trạng thái "bản cũ": không có quyền UPDATE(id), không có trigger, chưa có hồ sơ nào
+await db2.exec(`revoke update (id) on public.profiles from authenticated; drop trigger on_auth_user_created on auth.users; delete from public.profiles;`);
+const L1='aaaaaaaa-0000-0000-0000-000000000001', L2='aaaaaaaa-0000-0000-0000-000000000002', L3='aaaaaaaa-0000-0000-0000-000000000003';
+await db2.exec(`insert into auth.users(id,email,raw_user_meta_data) values ('${L1}','l1@x','{"username":"alice"}'),('${L2}','l2@x','{"username":"ALICE"}'),('${L3}','nguoi.ba@x','{}')`);
+const ups = `insert into public.profiles(id,username,avatar_url,preferences) values ('${L1}','alice',null,'{}') on conflict (id) do update set id = excluded.id, username = excluded.username, avatar_url = excluded.avatar_url, preferences = excluded.preferences returning 1`;
+await db2.exec(`set role authenticated; select set_config('request.jwt.claim.sub','${L1}',false)`);
+let e1; try { await db2.query(ups); } catch (e) { e1 = e; }
+assert.ok(e1 && /permission denied/i.test(e1.message)); console.log('  ✓ TÁI HIỆN LỖI: upsert hồ sơ bị "permission denied" ở bản cũ');
+await db2.exec('reset role');
+assert.equal((await db2.query(`select count(*)::int n from public.profiles`)).rows[0].n, 0);
+await db2.exec(fs.readFileSync(new URL('../migrations/20261128010000_fix_profile_creation.sql', import.meta.url), 'utf8'));
+const fixed = (await db2.query(`select id, username from public.profiles order by id`)).rows;
+assert.equal(fixed.length, 3); assert.equal(new Set(fixed.map(r => r.username.toLowerCase())).size, 3); console.log('  ✓ file sửa lỗi tạo bù hồ sơ cho 3 tài khoản cũ (tên trùng được xử lý):', fixed.map(r => r.username).join(', '));
+await db2.exec(`set role authenticated; select set_config('request.jwt.claim.sub','${L1}',false)`);
+await db2.query(ups); console.log('  ✓ SAU KHI SỬA: upsert hồ sơ thành công');
+await db2.exec('reset role');
+await db2.exec(fs.readFileSync(new URL('../migrations/20261128010000_fix_profile_creation.sql', import.meta.url), 'utf8')); console.log('  ✓ file sửa lỗi chạy lại lần 2 không lỗi (idempotent)');
+
+
+console.log('11) Project đã chạy bản cũ: thiếu cột photos và chưa có bucket -> chạy file sửa lỗi tải ảnh');
+await db2.exec(`alter table public.photos drop column suspected_exif_fraud; alter table public.photos drop column needs_third; delete from storage.buckets;`);
+let e2; try { await db2.query(`insert into public.photos(url, suspected_exif_fraud) values ('x', true)`); } catch (e) { e2 = e; }
+assert.ok(e2 && /suspected_exif_fraud/.test(e2.message)); console.log('  ✓ TÁI HIỆN LỖI: chèn ảnh thất bại vì thiếu cột suspected_exif_fraud');
+const fixSql = fs.readFileSync(new URL('../migrations/20261128020000_fix_photos_columns_and_storage.sql', import.meta.url), 'utf8');
+await db2.exec(fixSql);
+await db2.query(`insert into public.photos(url, suspected_exif_fraud, license_plate) values ('x', true, '29B-1')`); console.log('  ✓ SAU KHI SỬA: chèn ảnh với suspected_exif_fraud thành công');
+assert.equal((await db2.query(`select count(*)::int n from storage.buckets where id='photos' and public`)).rows[0].n, 1); console.log('  ✓ bucket "photos" công khai đã có');
+await db2.exec(fixSql); console.log('  ✓ file sửa lỗi chạy lại lần 2 không lỗi (idempotent)');
 console.log('\nTẤT CẢ ĐẠT');
