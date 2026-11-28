@@ -67,7 +67,9 @@ create table public.photos (
   audit_date     timestamptz,
   mod_note       text,
   review_progress text,                                          -- vd '0/2', 'Passed Quality'
-  reviewer_count integer not null default 0
+  reviewer_count integer not null default 0,
+  suspected_exif_fraud boolean not null default false,            -- api/upload.js đặt khi EXIF có dấu hiệu gian lận
+  needs_third    boolean not null default false                    -- api/admin/action.js: cần người duyệt thứ ba
 );
 
 alter table public.profiles
@@ -341,6 +343,53 @@ end $$;
 create trigger photo_views_log_bump_trg after insert on public.photo_views_log
   for each row execute function public.bump_photo_views();
 
+-- Tự tạo hồ sơ (profiles) khi có tài khoản mới trong auth.users, kể cả khi chưa xác nhận email.
+create or replace function public.create_profile_for_auth_user(u auth.users) returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  base text;
+  candidate text;
+  n integer := 0;
+begin
+  base := left(trim(coalesce(
+            nullif(u.raw_user_meta_data ->> 'username', ''),
+            nullif(u.raw_user_meta_data ->> 'name', ''),
+            nullif(u.raw_user_meta_data -> 'custom_claims' ->> 'global_name', ''),
+            nullif(split_part(coalesce(u.email, ''), '@', 1), ''),
+            'User')), 20);
+  if base = '' then base := 'User'; end if;
+  candidate := base;
+  loop
+    begin
+      insert into public.profiles (id, username, avatar_url)
+      values (u.id, candidate,
+              coalesce(nullif(u.raw_user_meta_data ->> 'avatar_url', ''), nullif(u.raw_user_meta_data ->> 'picture', '')))
+      on conflict (id) do nothing;
+      exit;
+    exception when unique_violation then
+      -- trùng tên (không phân biệt hoa thường): thêm hậu tố ngẫu nhiên
+      n := n + 1;
+      exit when n > 5;
+      candidate := left(base, 15) || '_' || substr(md5(random()::text || clock_timestamp()::text), 1, 4);
+    end;
+  end loop;
+end $$;
+
+create or replace function public.handle_new_user() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  begin
+    perform public.create_profile_for_auth_user(new);
+  exception when others then
+    null;  -- không bao giờ chặn việc đăng ký; trình duyệt vẫn upsert hồ sơ khi đăng nhập
+  end;
+  return new;
+end $$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created after insert on auth.users
+  for each row execute function public.handle_new_user();
+
 -- -----------------------------------------------------------------------------
 -- 4. HÀM RPC (TÙY CHỌN: giao diện có sẵn cách dự phòng nếu các hàm này không tồn tại/lỗi)
 --    Tên hàm và tham số khớp đúng cách trình duyệt gọi. Nội dung là suy đoán từ cách giao diện dùng kết quả.
@@ -448,6 +497,8 @@ grant usage on schema public to anon, authenticated, service_role;
 grant all on all tables in schema public to service_role;
 grant all on all sequences in schema public to service_role;
 grant execute on all functions in schema public to anon, authenticated, service_role;
+-- Hàm tạo hồ sơ chỉ dành cho trigger/server, không cho trình duyệt gọi trực tiếp
+revoke execute on function public.create_profile_for_auth_user(auth.users) from public, anon, authenticated;
 
 -- Gỡ quyền mặc định của Supabase rồi cấp lại từng phần
 revoke all on all tables in schema public from anon, authenticated;
@@ -457,7 +508,8 @@ alter table public.profiles enable row level security;
 grant select (id, username, avatar_url, role, subroles, ban_status, preferences, reputation_score,
               favorite_photo_id, discord_custom_role_id, created_at) on public.profiles to anon, authenticated;
 grant insert (id, username, avatar_url, preferences) on public.profiles to authenticated;
-grant update (username, avatar_url, preferences, favorite_photo_id, discord_custom_role_id) on public.profiles to authenticated;
+-- Lưu ý: phải gồm cả `id` vì PostgREST upsert đặt cột khóa vào danh sách UPDATE; RLS + trigger profiles_guard giữ id không đổi.
+grant update (id, username, avatar_url, preferences, favorite_photo_id, discord_custom_role_id) on public.profiles to authenticated;
 create policy profiles_select on public.profiles for select to anon, authenticated using (true);
 create policy profiles_insert_own on public.profiles for insert to authenticated with check (id = auth.uid());
 create policy profiles_update_own on public.profiles for update to authenticated
@@ -573,6 +625,11 @@ alter table public.admin_notes enable row level security;
 grant select, insert, update on public.admin_notes to authenticated;
 create policy notes_all on public.admin_notes for all to authenticated
   using (public.is_staff()) with check (public.is_staff());
+
+-- ---- kho ảnh: bucket công khai "photos" (api/upload.js lưu ảnh vào đây khi không dùng CDN của dự án gốc).
+-- Ai cũng xem ảnh qua URL công khai; chỉ service_role ghi/xóa được (không tạo chính sách nào cho anon/authenticated).
+insert into storage.buckets (id, name, public) values ('photos', 'photos', true)
+on conflict (id) do update set public = true;
 
 -- ---- chỉ server (service_role): bật RLS, KHÔNG có chính sách nào => trình duyệt không thấy gì
 alter table public.donations         enable row level security;
